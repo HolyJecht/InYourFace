@@ -1,0 +1,12 @@
+settings =
+{
+	androidPermissions =
+	{
+		"android.permission.VIBRATE"
+	},
+	orientation =
+    {
+		default = "portrait",
+		supported = { "portrait" }
+	}
+}
