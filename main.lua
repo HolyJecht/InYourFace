@@ -7,10 +7,35 @@ local legitShake = 0.5
 local difficulty = 5
 local progress = 0
 local gameStop = false
+local startTime = os.time()
+local duration = 0
+
+--initial screen
+local initialGroup = display.newGroup()
+local imgTripod = display.newImage(initialGroup,"tripod.png")
+imgTripod.x = display.contentWidth / 2
+imgTripod.y = display.contentHeight / 2
+local txtTripod = display.newText(initialGroup, "Designed by Tripod", 30, imgTripod.y+50, "Arial",30)
+
+--countdown group
+local countGroup = display.newGroup()
+local img1 = display.newImage(countGroup, "1.png")
+local img2 = display.newImage(countGroup, "2.png")
+local img3 = display.newImage(countGroup, "3.png")
+img1.x = display.contentWidth / 2
+img1.y = display.contentHeight / 2
+img2.x = display.contentWidth / 2
+img2.y = display.contentHeight / 2
+img3.x = display.contentWidth / 2
+img3.y = display.contentHeight / 2
+img1.isVisible = false
+img2.isVisible = false
+img3.isVisible = false
 
 --background group
 local bgGroup = display.newGroup()
 local bgImage = display.newImage(bgGroup, "ketchup.png")
+bgGroup.isVisible = false
 
 --onScreen debug group
 local bgDebug = display.newGroup()
@@ -27,6 +52,7 @@ progBar.x, progBar.y = 100, 200
 progBar:setFillColor(120,120,120)
 local progBarFill = display.newRect(barGroup,100,200,0,20)
 progBarFill:setFillColor(234,183,30)
+barGroup.isVisible = false
 
 --face group
 local faceGroup = display.newGroup()
@@ -52,24 +78,50 @@ local sequenceData =
 local sheet = graphics.newImageSheet("runningcat-full.png",options)
 local catSprite = display.newSprite(animateGroup, sheet, sequenceData)
 function spriteListener( event )
-    --print(event.name, event.phase)
     if event.phase == "ended" then
-		showSuccessView(false)
-		Runtime:addEventListener("accelerometer",onSensorChanged)
-		print (string.format("%f", progress))
-		--weird bug had to reset progBarFill
-		progBarFill:removeSelf()
-		progBarFill = nil
-		progBarFill = display.newRect(barGroup,100,200,0,20)
-		progBarFill:setFillColor(234,183,30)
-		progBarFill:setReferencePoint(display.BottomLeftReferencePoint)
-		progBarFill.x, progBarFill.y = 100, 200
-		progBarFill.width = 0
-		print (string.format("%d", progBarFill.width))
+    	print(tostring(duration))
+    	showScore()
     end
 end
 catSprite:addEventListener("sprite", spriteListener )
 animateGroup.isVisible = false
+
+--information group
+local infoGroup = display.newGroup()
+local lblScore = display.newText(infoGroup,"score:",100,150,"Arial",20)
+local txtScore = display.newText(infoGroup,"songcan",200,150,"Arial",20)
+local widget = require("widget")
+local function newGameHandler(event)
+	if event.phase == "ended" then
+		faceGroup.isVisible = false
+		animateGroup.isVisible = false
+		barGroup.isVisible = false
+		infoGroup.isVisible = false
+		countGroup:toFront()
+		countDown()
+		--startGame()
+	end
+end
+local btnNewGame = widget.newButton
+{
+	left = 100,
+    top = 300,
+    width = 150,
+    height = 50,
+    --defaultFile = "default.png",
+    --overFile = "over.png",
+    id = "btnNewGame",
+    label = "New Game",
+    onEvent = newGameHandler,
+}
+infoGroup:insert(btnNewGame)
+infoGroup.isVisible = false
+function showScore()
+	txtScore.text = tostring(duration) .. " sec!"
+	infoGroup.isVisible = true
+	infoGroup:toFront()
+end
+infoGroup.isVisible = false
 
 --media control variables
 soundPlayed = {}
@@ -95,6 +147,7 @@ function onSensorChanged(event)
 	mAccelCurrent = math.sqrt(x * x + y * y + z * z)
 	local delta = mAccelCurrent - mAccelLast
 	mAccel = mAccel * 0.9 + delta
+	print(tostring(mAccel))
 	if math.abs(mAccel) > legitShake and progress < 100 and not gameStop then
 		onShake("mAccel: " .. string.format("%f",mAccel))
 		progress = progress + math.abs(mAccel) * 10
@@ -138,9 +191,13 @@ function updateProgBar(value)
 	notifyUser(value)
 	
 	if value >= 100 then
+		duration = os.time() - startTime
 		Runtime:removeEventListener("accelerometer",onSensorChanged)
 		myTextObject.text = "You Won!!"
 		progress = 0
+		mAccel = 0
+		mAccelLast = 0
+		mAccelCurrent = 0
 		showSuccessView(true)
 		setSoundPlayed(false)
 		catSprite:setSequence("slowRun")
@@ -148,5 +205,49 @@ function updateProgBar(value)
 	else
 		progBarFill.width = value
 	end
-end 
+	print (string.format("%f", progress))
+end
+function startGame()
+	infoGroup.isVisible = false
+	--weird bug had to reset progBarFill
+	progBarFill:removeSelf()
+	progBarFill = nil
+	progBarFill = display.newRect(barGroup,100,200,0,20)
+	progBarFill:setFillColor(234,183,30)
+	progBarFill:setReferencePoint(display.BottomLeftReferencePoint)
+	progBarFill.x, progBarFill.y = 100, 200
+	progBarFill.width = 0
+	print (string.format("%d", progBarFill.width))
+	barGroup.isVisible = true
+	startTime = os.time()
+	showSuccessView(false)
+	Runtime:addEventListener("accelerometer",onSensorChanged)
+end
+function countDown()
+	countGroup:toFront()
+	img3.isVisible = true
+	timer.performWithDelay(500, function() img3.isVisible = false end)
+	timer.performWithDelay(1000, function() img2.isVisible = true end)
+	timer.performWithDelay(1500, function() img2.isVisible = false end)
+	timer.performWithDelay(2000, function() img1.isVisible = true end)
+	timer.performWithDelay(2500, function() img1.isVisible = false end)
+	timer.performWithDelay(3000, function() startGame() end)
+	countGroup:toBack()
+	
+	--timer.performWithDelay(1000, transition.to(img3, {time=200,delay=0,alpha=0}))
+	--timer.performWithDelay(3000, function() img3.isVisible = false  img2.isVisible = true end)
+	--timer.performWithDelay(3001, transition.to(img2, {time=200,delay=0,alpha=0}))
+	--timer.performWithDelay(5000, function() img2.isVisible = false  img1.isVisible = true end)
+	--timer.performWithDelay(5001, transition.to(img1, {time=200,delay=0,alpha=0}))
+	--timer.performWithDelay(7000, function() img1.isVisible = false startGame() end)
+end
+function endInitial()
+	initialGroup.isVisible = false
+	initialGroup.remove(imgTripod)
+	initialGroup.remove(txtTripod)
+	initialGroup = nil
+	countDown()
+end
+local initialTimer = timer.performWithDelay(2000,endInitial)
+
 Runtime:addEventListener("accelerometer",onSensorChanged)
