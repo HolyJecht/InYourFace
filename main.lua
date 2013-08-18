@@ -10,6 +10,17 @@ local gameStop = false
 local startTime = os.time()
 local duration = 0
 
+--physics
+local physics = require("physics")
+physics.start()
+physics.setGravity(0,2)
+--physics.setDrawMode("hybrid")
+local imgSplash = nil
+local bounceLine = display.newRect(0, display.contentHeight * 4 / 5.0, display.contentWidth, 1)
+--bounceLine:setFillColor(140, 140, 140)
+bounceLine.isVisible = false
+physics.addBody(bounceLine, "static", {bounce=0,friction=1.0})
+
 --initial screen
 local initialGroup = display.newGroup()
 local imgTripod = display.newImage(initialGroup,"tripod.png")
@@ -87,21 +98,7 @@ catSprite:addEventListener("sprite", spriteListener )
 animateGroup.isVisible = false
 
 --information group
-local infoGroup = display.newGroup()
-local lblScore = display.newText(infoGroup,"score:",100,150,"Arial",20)
-local txtScore = display.newText(infoGroup,"songcan",200,150,"Arial",20)
 local widget = require("widget")
-local function newGameHandler(event)
-	if event.phase == "ended" then
-		faceGroup.isVisible = false
-		animateGroup.isVisible = false
-		barGroup.isVisible = false
-		infoGroup.isVisible = false
-		countGroup:toFront()
-		countDown()
-		--startGame()
-	end
-end
 local btnNewGame = widget.newButton
 {
 	left = 100,
@@ -112,9 +109,27 @@ local btnNewGame = widget.newButton
     --overFile = "over.png",
     id = "btnNewGame",
     label = "New Game",
-    onEvent = newGameHandler,
+    --onEvent = newGameHandler,
 }
-infoGroup:insert(btnNewGame)
+btnNewGame.isVisible = false
+local infoGroup = display.newGroup()
+local lblScore = display.newText(infoGroup,"score:",100,150,"Arial",20)
+local txtScore = display.newText(infoGroup,"songcan",200,150,"Arial",20)
+local function newGameHandler(event)
+	if event.phase == "ended" then
+		faceGroup.isVisible = false
+		animateGroup.isVisible = false
+		barGroup.isVisible = false
+		--add new game to info group to hide
+		infoGroup:insert(btnNewGame)
+		infoGroup.isVisible = false
+		countGroup:toFront()
+		countDown()
+		--startGame()
+	end
+end
+btnNewGame:addEventListener("touch", newGameHandler)
+
 infoGroup.isVisible = false
 function showScore()
 	txtScore.text = tostring(duration) .. " sec!"
@@ -183,6 +198,19 @@ function notifyUser(value)
 		system.vibrate(3000)
 	end
 end
+function splashFall()
+	imgSplash = display.newImage("water.jpg")
+	imgSplash:scale(0.3,0.3)
+	imgSplash.alpha = 0.7
+	imgSplash.isVisible = true
+	imgSplash:toFront()
+	physics.addBody(imgSplash, { density=1.0, friction=0.8, bounce=0.8, radius=50} )
+end
+function stopSplash()
+	physics.removeBody(imgSplash)
+	imgSplash:removeSelf()
+	imgSplash = nil
+end
 function updateProgBar(value)
 	progBarFill:setReferencePoint(display.BottomLeftReferencePoint)
 	progBarFill.x, progBarFill.y = 100, 200
@@ -202,6 +230,10 @@ function updateProgBar(value)
 		setSoundPlayed(false)
 		catSprite:setSequence("slowRun")
 		catSprite:play()
+		
+		--add physics fall
+		splashFall()
+		timer.performWithDelay(7000, stopSplash)
 	else
 		progBarFill.width = value
 	end
@@ -246,7 +278,9 @@ function endInitial()
 	initialGroup.remove(imgTripod)
 	initialGroup.remove(txtTripod)
 	initialGroup = nil
-	countDown()
+	btnNewGame:toFront()
+	btnNewGame.isVisible = true
+	--countDown()
 end
 local initialTimer = timer.performWithDelay(2000,endInitial)
 
